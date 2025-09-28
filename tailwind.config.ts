@@ -57,13 +57,40 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Custom cyber cafe colors
+        cyber: {
+          glow: "hsl(var(--cyber-glow))",
+          purple: "hsl(var(--cyber-purple))",
+          dark: "hsl(var(--cyber-dark))",
+          card: "hsl(var(--cyber-card))",
+          border: "hsl(var(--cyber-border))",
+        },
       },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+      backgroundImage: {
+        'gradient-cyber': 'var(--gradient-cyber)',
+        'gradient-card': 'var(--gradient-card)',
+        'gradient-text': 'var(--gradient-text)',
+      },
+      boxShadow: {
+        'cyber': 'var(--shadow-cyber)',
+        'purple': 'var(--shadow-purple)',
+        'card-cyber': 'var(--shadow-card)',
+      },
+      animation: {
+        'glow': 'glow 2s ease-in-out infinite alternate',
+        'float': 'float 6s ease-in-out infinite',
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
       keyframes: {
+        glow: {
+          '0%': { boxShadow: '0 0 20px hsl(var(--cyber-glow) / 0.3)' },
+          '100%': { boxShadow: '0 0 40px hsl(var(--cyber-glow) / 0.7)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
         "accordion-down": {
           from: {
             height: "0",
@@ -80,10 +107,6 @@ export default {
             height: "0",
           },
         },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
       },
     },
   },
