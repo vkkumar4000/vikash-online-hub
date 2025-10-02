@@ -5,25 +5,109 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Edit } from "lucide-react";
+import { Trash2, Edit, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Tables } from "@/integrations/supabase/types";
 
-interface Supplier {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  address: string;
-}
+type Supplier = Tables<"suppliers">;
 
 export default function SuppliersView() {
   const { toast } = useToast();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [address, setAddress] = useState("");
+
+  // Fetch suppliers
+  const { data: suppliers = [], isLoading } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data as Supplier[];
+    },
+  });
+
+  // Add supplier mutation
+  const addSupplierMutation = useMutation({
+    mutationFn: async (newSupplier: { name: string; email: string; phone: string; company: string; address: string }) => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Not authenticated");
+
+      // Generate supplier ID
+      const { data: supplierId, error: idError } = await supabase.rpc("generate_supplier_id");
+      if (idError) throw idError;
+
+      const { data, error } = await supabase
+        .from("suppliers")
+        .insert({
+          supplier_id: supplierId,
+          name: newSupplier.name,
+          email: newSupplier.email,
+          phone: newSupplier.phone,
+          company: newSupplier.company,
+          address: newSupplier.address,
+          user_id: session.session.user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      setName("");
+      setEmail("");
+      setPhone("");
+      setCompany("");
+      setAddress("");
+      toast({
+        title: "Supplier added",
+        description: "Supplier has been added successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete supplier mutation
+  const deleteSupplierMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("suppliers")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      toast({
+        title: "Supplier removed",
+        description: "Supplier has been removed",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleAddSupplier = () => {
     if (!name || !phone) {
@@ -35,35 +119,11 @@ export default function SuppliersView() {
       return;
     }
 
-    const supplierId = `SUPP${String(suppliers.length + 1).padStart(3, '0')}`;
-    const newSupplier: Supplier = {
-      id: supplierId,
-      name,
-      email,
-      phone,
-      company,
-      address,
-    };
-
-    setSuppliers([...suppliers, newSupplier]);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setCompany("");
-    setAddress("");
-
-    toast({
-      title: "Supplier added",
-      description: "Supplier has been added successfully",
-    });
+    addSupplierMutation.mutate({ name, email, phone, company, address });
   };
 
   const handleRemoveSupplier = (id: string) => {
-    setSuppliers(suppliers.filter(supplier => supplier.id !== id));
-    toast({
-      title: "Supplier removed",
-      description: "Supplier has been removed",
-    });
+    deleteSupplierMutation.mutate(id);
   };
 
   return (
@@ -130,25 +190,36 @@ export default function SuppliersView() {
             onClick={handleAddSupplier}
             variant="cyber" 
             className="w-full"
+            disabled={addSupplierMutation.isPending}
           >
+            {addSupplierMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Add Supplier
           </Button>
         </CardContent>
       </Card>
 
-      {suppliers.length > 0 && (
-        <Card className="bg-gradient-card border-cyber-border">
-          <CardHeader>
-            <CardTitle>Supplier List</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="bg-gradient-card border-cyber-border">
+        <CardHeader>
+          <CardTitle>Supplier List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : suppliers.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No suppliers yet. Add your first supplier above.
+            </p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Company</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -156,10 +227,11 @@ export default function SuppliersView() {
               <TableBody>
                 {suppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
-                    <TableCell className="font-medium">{supplier.name}</TableCell>
-                    <TableCell>{supplier.company || "-"}</TableCell>
+                    <TableCell className="font-medium">{supplier.supplier_id}</TableCell>
+                    <TableCell>{supplier.name}</TableCell>
                     <TableCell>{supplier.phone}</TableCell>
                     <TableCell>{supplier.email || "-"}</TableCell>
+                    <TableCell>{supplier.company || "-"}</TableCell>
                     <TableCell>{supplier.address || "-"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -170,6 +242,7 @@ export default function SuppliersView() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleRemoveSupplier(supplier.id)}
+                          disabled={deleteSupplierMutation.isPending}
                         >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
@@ -179,9 +252,9 @@ export default function SuppliersView() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

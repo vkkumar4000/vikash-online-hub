@@ -5,23 +5,106 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Edit } from "lucide-react";
+import { Trash2, Edit, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Tables } from "@/integrations/supabase/types";
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-}
+type Customer = Tables<"customers">;
 
 export default function CustomersView() {
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+
+  // Fetch customers
+  const { data: customers = [], isLoading } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data as Customer[];
+    },
+  });
+
+  // Add customer mutation
+  const addCustomerMutation = useMutation({
+    mutationFn: async (newCustomer: { name: string; email: string; phone: string; address: string }) => {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error("Not authenticated");
+
+      // Generate customer ID
+      const { data: customerId, error: idError } = await supabase.rpc("generate_customer_id");
+      if (idError) throw idError;
+
+      const { data, error } = await supabase
+        .from("customers")
+        .insert({
+          customer_id: customerId,
+          name: newCustomer.name,
+          email: newCustomer.email,
+          phone: newCustomer.phone,
+          address: newCustomer.address,
+          user_id: session.session.user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      setName("");
+      setEmail("");
+      setPhone("");
+      setAddress("");
+      toast({
+        title: "Customer added",
+        description: "Customer has been added successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete customer mutation
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("customers")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({
+        title: "Customer removed",
+        description: "Customer has been removed",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleAddCustomer = () => {
     if (!name || !phone) {
@@ -33,33 +116,11 @@ export default function CustomersView() {
       return;
     }
 
-    const customerId = `CUST${String(customers.length + 1).padStart(3, '0')}`;
-    const newCustomer: Customer = {
-      id: customerId,
-      name,
-      email,
-      phone,
-      address,
-    };
-
-    setCustomers([...customers, newCustomer]);
-    setName("");
-    setEmail("");
-    setPhone("");
-    setAddress("");
-
-    toast({
-      title: "Customer added",
-      description: "Customer has been added successfully",
-    });
+    addCustomerMutation.mutate({ name, email, phone, address });
   };
 
   const handleRemoveCustomer = (id: string) => {
-    setCustomers(customers.filter(customer => customer.id !== id));
-    toast({
-      title: "Customer removed",
-      description: "Customer has been removed",
-    });
+    deleteCustomerMutation.mutate(id);
   };
 
   return (
@@ -116,21 +177,32 @@ export default function CustomersView() {
             onClick={handleAddCustomer}
             variant="cyber" 
             className="w-full"
+            disabled={addCustomerMutation.isPending}
           >
+            {addCustomerMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Add Customer
           </Button>
         </CardContent>
       </Card>
 
-      {customers.length > 0 && (
-        <Card className="bg-gradient-card border-cyber-border">
-          <CardHeader>
-            <CardTitle>Customer List</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="bg-gradient-card border-cyber-border">
+        <CardHeader>
+          <CardTitle>Customer List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : customers.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No customers yet. Add your first customer above.
+            </p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
@@ -141,7 +213,8 @@ export default function CustomersView() {
               <TableBody>
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
-                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell className="font-medium">{customer.customer_id}</TableCell>
+                    <TableCell>{customer.name}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.email || "-"}</TableCell>
                     <TableCell>{customer.address || "-"}</TableCell>
@@ -154,6 +227,7 @@ export default function CustomersView() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleRemoveCustomer(customer.id)}
+                          disabled={deleteCustomerMutation.isPending}
                         >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
@@ -163,9 +237,9 @@ export default function CustomersView() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
