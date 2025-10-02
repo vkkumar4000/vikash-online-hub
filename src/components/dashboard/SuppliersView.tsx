@@ -35,8 +35,9 @@ export default function SuppliersView() {
       return;
     }
 
+    const supplierId = `SUPP${String(suppliers.length + 1).padStart(3, '0')}`;
     const newSupplier: Supplier = {
-      id: Date.now().toString(),
+      id: supplierId,
       name,
       email,
       phone,

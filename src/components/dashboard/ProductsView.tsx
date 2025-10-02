@@ -33,8 +33,9 @@ export default function ProductsView() {
       return;
     }
 
+    const productId = `PROD${String(products.length + 1).padStart(3, '0')}`;
     const newProduct: Product = {
-      id: Date.now().toString(),
+      id: productId,
       name,
       category,
       price: parseFloat(price),

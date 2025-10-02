@@ -33,8 +33,9 @@ export default function CustomersView() {
       return;
     }
 
+    const customerId = `CUST${String(customers.length + 1).padStart(3, '0')}`;
     const newCustomer: Customer = {
-      id: Date.now().toString(),
+      id: customerId,
       name,
       email,
       phone,
