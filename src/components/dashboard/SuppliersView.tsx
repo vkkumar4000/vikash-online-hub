@@ -20,6 +20,7 @@ export default function SuppliersView() {
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [address, setAddress] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
 
   // Fetch suppliers
   const { data: suppliers = [], isLoading } = useQuery({
@@ -35,9 +36,8 @@ export default function SuppliersView() {
     },
   });
 
-  // Add supplier mutation
   const addSupplierMutation = useMutation({
-    mutationFn: async (newSupplier: { name: string; email: string; phone: string; company: string; address: string }) => {
+    mutationFn: async (newSupplier: { name: string; email: string; phone: string; company: string; address: string; gstNumber: string }) => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Not authenticated");
 
@@ -50,10 +50,11 @@ export default function SuppliersView() {
         .insert({
           supplier_id: supplierId,
           name: newSupplier.name,
-          email: newSupplier.email,
+          email: newSupplier.email || null,
           phone: newSupplier.phone,
-          company: newSupplier.company,
-          address: newSupplier.address,
+          company: newSupplier.company || null,
+          address: newSupplier.address || null,
+          gst_number: newSupplier.gstNumber || null,
           user_id: session.session.user.id,
         })
         .select()
@@ -69,6 +70,7 @@ export default function SuppliersView() {
       setPhone("");
       setCompany("");
       setAddress("");
+      setGstNumber("");
       toast({
         title: "Supplier added",
         description: "Supplier has been added successfully",
@@ -119,7 +121,7 @@ export default function SuppliersView() {
       return;
     }
 
-    addSupplierMutation.mutate({ name, email, phone, company, address });
+    addSupplierMutation.mutate({ name, email, phone, company, address, gstNumber });
   };
 
   const handleRemoveSupplier = (id: string) => {
@@ -184,6 +186,16 @@ export default function SuppliersView() {
                 onChange={(e) => setAddress(e.target.value)}
               />
             </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="gstNumber">GST Number</Label>
+              <Input
+                id="gstNumber"
+                placeholder="Enter GST number"
+                value={gstNumber}
+                onChange={(e) => setGstNumber(e.target.value)}
+              />
+            </div>
           </div>
 
           <Button 
@@ -220,7 +232,7 @@ export default function SuppliersView() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Company</TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead>GST Number</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -232,7 +244,7 @@ export default function SuppliersView() {
                     <TableCell>{supplier.phone}</TableCell>
                     <TableCell>{supplier.email || "-"}</TableCell>
                     <TableCell>{supplier.company || "-"}</TableCell>
-                    <TableCell>{supplier.address || "-"}</TableCell>
+                    <TableCell>{supplier.gst_number || "-"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">

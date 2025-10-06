@@ -14,6 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
+      bill_items: {
+        Row: {
+          bill_id: string
+          created_at: string
+          id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          bill_id: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          bill_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_items_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bills: {
+        Row: {
+          bill_date: string
+          bill_number: string
+          created_at: string
+          customer_id: string | null
+          discount_amount: number
+          id: string
+          notes: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bill_date?: string
+          bill_number: string
+          created_at?: string
+          customer_id?: string | null
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bill_date?: string
+          bill_number?: string
+          created_at?: string
+          customer_id?: string | null
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          status?: string
+          subtotal?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_credentials: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          is_active: boolean
+          last_login: string | null
+          password_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_active?: boolean
+          last_login?: string | null
+          password_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_active?: boolean
+          last_login?: string | null
+          password_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_credentials_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: true
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -50,6 +195,50 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          bill_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_mode: string
+          reference_number: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bill_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_mode?: string
+          reference_number?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bill_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_mode?: string
+          reference_number?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
@@ -57,8 +246,11 @@ export type Database = {
           id: string
           name: string
           price: number
+          product_code: string | null
           product_id: string
           stock: number
+          supplier_id: string | null
+          unit: string | null
           updated_at: string
           user_id: string
         }
@@ -68,8 +260,11 @@ export type Database = {
           id?: string
           name: string
           price: number
+          product_code?: string | null
           product_id: string
           stock?: number
+          supplier_id?: string | null
+          unit?: string | null
           updated_at?: string
           user_id: string
         }
@@ -79,12 +274,23 @@ export type Database = {
           id?: string
           name?: string
           price?: number
+          product_code?: string | null
           product_id?: string
           stock?: number
+          supplier_id?: string | null
+          unit?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
@@ -92,6 +298,7 @@ export type Database = {
           company: string | null
           created_at: string
           email: string | null
+          gst_number: string | null
           id: string
           name: string
           phone: string
@@ -104,6 +311,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
+          gst_number?: string | null
           id?: string
           name: string
           phone: string
@@ -116,6 +324,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
+          gst_number?: string | null
           id?: string
           name?: string
           phone?: string
@@ -130,6 +339,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_bill_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_customer_id: {
         Args: Record<PropertyKey, never>
         Returns: string

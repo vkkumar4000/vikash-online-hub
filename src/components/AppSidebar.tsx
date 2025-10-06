@@ -1,4 +1,4 @@
-import { FileText, Users, Package, Building2, Receipt, Download } from "lucide-react";
+import { FileText, Users, Package, Building2, Receipt, Download, DollarSign, ShoppingCart } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,12 +17,13 @@ interface AppSidebarProps {
 }
 
 const menuItems = [
-  { id: "billing", title: "Create Bill", icon: Receipt },
-  { id: "customers", title: "Add Customers", icon: Users },
-  { id: "products", title: "Add Products", icon: Package },
-  { id: "suppliers", title: "Add Suppliers", icon: Building2 },
+  { id: "sales", title: "Create Sale", icon: ShoppingCart },
+  { id: "payments", title: "Payments", icon: DollarSign },
+  { id: "customers", title: "Customers", icon: Users },
+  { id: "products", title: "Products", icon: Package },
+  { id: "suppliers", title: "Suppliers", icon: Building2 },
   { id: "print", title: "Print Bill", icon: FileText },
-  { id: "reports", title: "Download Report", icon: Download },
+  { id: "reports", title: "Reports", icon: Download },
 ];
 
 export function AppSidebar({ activeView, onViewChange }: AppSidebarProps) {

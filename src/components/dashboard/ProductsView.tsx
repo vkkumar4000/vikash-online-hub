@@ -16,27 +16,44 @@ export default function ProductsView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [productCode, setProductCode] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
+  const [unit, setUnit] = useState("pcs");
+  const [supplierId, setSupplierId] = useState("");
 
-  // Fetch products
+  // Fetch products with supplier info
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*, suppliers(name)")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as Product[];
+      return data;
+    },
+  });
+
+  // Fetch suppliers for dropdown
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .order("name");
+      
+      if (error) throw error;
+      return data;
     },
   });
 
   // Add product mutation
   const addProductMutation = useMutation({
-    mutationFn: async (newProduct: { name: string; category: string; price: number; stock: number }) => {
+    mutationFn: async (newProduct: { name: string; productCode: string; category: string; price: number; stock: number; unit: string; supplierId: string }) => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Not authenticated");
 
@@ -48,10 +65,13 @@ export default function ProductsView() {
         .from("products")
         .insert({
           product_id: productId,
+          product_code: newProduct.productCode || productId,
           name: newProduct.name,
           category: newProduct.category,
           price: newProduct.price,
           stock: newProduct.stock,
+          unit: newProduct.unit,
+          supplier_id: newProduct.supplierId || null,
           user_id: session.session.user.id,
         })
         .select()
@@ -63,9 +83,12 @@ export default function ProductsView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setName("");
+      setProductCode("");
       setCategory("");
       setPrice("");
       setStock("");
+      setUnit("pcs");
+      setSupplierId("");
       toast({
         title: "Product added",
         description: "Product has been added successfully",
@@ -118,9 +141,12 @@ export default function ProductsView() {
 
     addProductMutation.mutate({
       name,
+      productCode,
       category,
       price: parseFloat(price),
       stock: parseInt(stock),
+      unit,
+      supplierId,
     });
   };
 
@@ -147,6 +173,16 @@ export default function ProductsView() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="productCode">Product Code</Label>
+              <Input
+                id="productCode"
+                placeholder="Auto-generated if empty"
+                value={productCode}
+                onChange={(e) => setProductCode(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
               <Input
                 id="category"
@@ -154,6 +190,23 @@ export default function ProductsView() {
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier">Supplier</Label>
+              <select
+                id="supplier"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+              >
+                <option value="">Select Supplier (Optional)</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -176,6 +229,22 @@ export default function ProductsView() {
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="unit">Unit *</Label>
+              <select
+                id="unit"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+              >
+                <option value="pcs">Pieces</option>
+                <option value="kg">Kilogram</option>
+                <option value="ltr">Liter</option>
+                <option value="box">Box</option>
+                <option value="dozen">Dozen</option>
+              </select>
             </div>
           </div>
 
@@ -208,22 +277,26 @@ export default function ProductsView() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Code</TableHead>
                   <TableHead>Product Name</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Supplier</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
+                {products.map((product: any) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.product_id}</TableCell>
+                    <TableCell className="font-medium">{product.product_code || product.product_id}</TableCell>
                     <TableCell>{product.name}</TableCell>
                     <TableCell>{product.category}</TableCell>
+                    <TableCell>{product.suppliers?.name || "-"}</TableCell>
                     <TableCell className="text-right">₹{Number(product.price).toFixed(2)}</TableCell>
                     <TableCell className="text-right">{product.stock}</TableCell>
+                    <TableCell>{product.unit}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">

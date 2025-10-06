@@ -14,6 +14,8 @@ import ProductsView from "@/components/dashboard/ProductsView";
 import SuppliersView from "@/components/dashboard/SuppliersView";
 import PrintBillView from "@/components/dashboard/PrintBillView";
 import ReportsView from "@/components/dashboard/ReportsView";
+import SalesView from "@/components/dashboard/SalesView";
+import PaymentsView from "@/components/dashboard/PaymentsView";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -86,6 +88,10 @@ export default function Dashboard() {
     switch (activeView) {
       case "billing":
         return <BillingView />;
+      case "sales":
+        return <SalesView />;
+      case "payments":
+        return <PaymentsView />;
       case "customers":
         return <CustomersView />;
       case "products":
@@ -97,7 +103,7 @@ export default function Dashboard() {
       case "reports":
         return <ReportsView />;
       default:
-        return <BillingView />;
+        return <SalesView />;
     }
   };
 
@@ -125,50 +131,7 @@ export default function Dashboard() {
           <main className="flex-1 overflow-auto">
             <div className="container mx-auto px-4 py-8">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {/* Quick Stats */}
-                <Card className="bg-gradient-card border-cyber-border">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Active Session</CardTitle>
-                    <Clock className="w-4 h-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-primary">2h 34m</div>
-                    <p className="text-xs text-muted-foreground">Current gaming session</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-card border-cyber-border">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Station</CardTitle>
-                    <Monitor className="w-4 h-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-primary">PC-07</div>
-                    <p className="text-xs text-muted-foreground">Gaming Pro Station</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-card border-cyber-border">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Credits</CardTitle>
-                    <CreditCard className="w-4 h-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-primary">₹150</div>
-                    <p className="text-xs text-muted-foreground">Available balance</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-card border-cyber-border">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Profile</CardTitle>
-                    <UserIcon className="w-4 h-4 text-primary" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-primary">Gold</div>
-                    <p className="text-xs text-muted-foreground">Member status</p>
-                  </CardContent>
-                </Card>
+                {/* Stats will be populated dynamically */}
               </div>
 
               {/* Dynamic Content */}
