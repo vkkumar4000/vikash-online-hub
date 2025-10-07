@@ -6,24 +6,70 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Download, LogOut } from "lucide-react";
+import { Download, LogOut, User as UserIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import type { User } from "@supabase/supabase-js";
 
 export default function CustomerPortal() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const customerData = sessionStorage.getItem("customerPortalId");
-    if (customerData) {
-      setCustomerId(customerData);
-      setIsLoggedIn(true);
-    }
+    // Check if user is logged in via Supabase auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+        fetchCustomerId(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+        fetchCustomerId(session.user.id);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null);
+        setCustomerId(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchCustomerId = async (userId: string) => {
+    const { data } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+    
+    if (data) {
+      setCustomerId(data.id);
+    }
+  };
+
+  const { data: customer } = useQuery({
+    queryKey: ["customer-info", customerId],
+    queryFn: async () => {
+      if (!customerId) return null;
+      
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", customerId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!customerId,
+  });
 
   const { data: bills } = useQuery({
     queryKey: ["customer-bills", customerId],
@@ -62,69 +108,62 @@ export default function CustomerPortal() {
     enabled: !!customerId && !!bills,
   });
 
-  const handleLogin = async () => {
-    try {
-      // This is a simplified login - in production, use proper password hashing
-      const { data: credentials, error } = await supabase
-        .from("customer_credentials")
-        .select("*, customers(*)")
-        .eq("username", username)
-        .eq("is_active", true)
-        .single();
+  const downloadBillPDF = (billId: string) => {
+    const bill = bills?.find(b => b.id === billId);
+    if (!bill) return;
 
-      if (error || !credentials) {
-        toast({
-          title: "Login Failed",
-          description: "Invalid username or password",
-          variant: "destructive",
-        });
-        return;
-      }
+    // Create a simple text-based receipt
+    const billContent = `
+===========================================
+              BILL RECEIPT
+===========================================
+Bill Number: ${bill.bill_number}
+Date: ${new Date(bill.bill_date).toLocaleDateString()}
+Customer: ${customer?.name || "N/A"}
+Phone: ${customer?.phone || "N/A"}
+-------------------------------------------
+Items:
+${bill.bill_items.map((item: any) => 
+  `${item.product_name} x ${item.quantity} @ ₹${Number(item.unit_price).toFixed(2)} = ₹${Number(item.total_price).toFixed(2)}`
+).join('\n')}
+-------------------------------------------
+Subtotal:        ₹${Number(bill.subtotal).toFixed(2)}
+Discount:        ₹${Number(bill.discount_amount).toFixed(2)}
+Tax:             ₹${Number(bill.tax_amount).toFixed(2)}
+-------------------------------------------
+TOTAL:           ₹${Number(bill.total_amount).toFixed(2)}
+===========================================
+Notes: ${bill.notes || "N/A"}
+===========================================
+    `;
 
-      // In production, verify password hash here
-      // For now, storing password as plain text (NOT SECURE - implement proper hashing)
-      if (credentials.password_hash !== password) {
-        toast({
-          title: "Login Failed",
-          description: "Invalid username or password",
-          variant: "destructive",
-        });
-        return;
-      }
+    // Create and download as text file
+    const blob = new Blob([billContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Bill-${bill.bill_number}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 
-      // Update last login
-      await supabase
-        .from("customer_credentials")
-        .update({ last_login: new Date().toISOString() })
-        .eq("id", credentials.id);
-
-      sessionStorage.setItem("customerPortalId", credentials.customer_id);
-      setCustomerId(credentials.customer_id);
-      setIsLoggedIn(true);
-
-      toast({
-        title: "Welcome!",
-        description: `Hello ${credentials.customers.name}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred during login",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Downloaded",
+      description: "Bill has been downloaded",
+    });
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("customerPortalId");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsLoggedIn(false);
+    setUser(null);
     setCustomerId(null);
-    setUsername("");
-    setPassword("");
     toast({
       title: "Logged out",
       description: "You have been logged out successfully",
     });
+    navigate("/auth");
   };
 
   const getPendingAmount = (billId: string) => {
@@ -142,34 +181,17 @@ export default function CustomerPortal() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md bg-gradient-card border-cyber-border">
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-primary">Customer Portal Login</CardTitle>
+            <CardTitle className="text-2xl text-center text-primary">Customer Portal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Username</label>
-              <Input
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Password</label>
-              <Input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-              />
-            </div>
-            <Button variant="glow" onClick={handleLogin} className="w-full">
-              Login
-            </Button>
-            <div className="text-center text-sm text-muted-foreground">
-              Contact admin for login credentials
+            <div className="text-center py-8">
+              <UserIcon className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <p className="text-muted-foreground mb-4">
+                Please log in to view your bills and payment history
+              </p>
+              <Button variant="glow" onClick={() => navigate("/auth")} className="w-full">
+                Go to Login
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -180,9 +202,14 @@ export default function CustomerPortal() {
   return (
     <div className="min-h-screen bg-background">
       <header className="h-16 border-b border-cyber-border bg-cyber-card/50 backdrop-blur-md flex items-center px-4">
-        <h1 className="text-2xl font-bold bg-gradient-text bg-clip-text text-transparent flex-1">
-          Customer Portal
-        </h1>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold bg-gradient-text bg-clip-text text-transparent">
+            Customer Portal
+          </h1>
+          {customer && (
+            <p className="text-sm text-muted-foreground">Welcome, {customer.name}</p>
+          )}
+        </div>
         <Button variant="outline" onClick={handleLogout}>
           <LogOut className="w-4 h-4 mr-2" />
           Logout
@@ -190,6 +217,34 @@ export default function CustomerPortal() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
+        {/* Customer Info Card */}
+        {customer && (
+          <Card className="bg-gradient-card border-cyber-border">
+            <CardHeader>
+              <CardTitle className="text-primary">Account Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Customer ID</p>
+                  <p className="font-semibold">{customer.customer_id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Name</p>
+                  <p className="font-semibold">{customer.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Phone</p>
+                  <p className="font-semibold">{customer.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="font-semibold">{customer.email || "N/A"}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Bills Section */}
         <Card className="bg-gradient-card border-cyber-border">
           <CardHeader>
@@ -234,7 +289,11 @@ export default function CustomerPortal() {
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => downloadBillPDF(bill.id)}
+                            >
                               <Download className="w-4 h-4 mr-2" />
                               Download
                             </Button>

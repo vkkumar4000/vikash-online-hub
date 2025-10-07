@@ -3,11 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button-enhanced";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Printer } from "lucide-react";
+import { Plus, Trash2, Printer, Check, ChevronsUpDown } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { cn } from "@/lib/utils";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -32,6 +35,8 @@ export default function SalesView() {
   const [taxRate, setTaxRate] = useState("18");
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [notes, setNotes] = useState("");
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -207,36 +212,113 @@ export default function SalesView() {
           {/* Customer Selection */}
           <div>
             <label className="text-sm font-medium mb-2 block">Customer (Optional)</label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-            >
-              <option value="">Walk-in Customer</option>
-              {customers?.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} - {customer.phone}
-                </option>
-              ))}
-            </select>
+            <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={customerOpen}
+                  className="w-full justify-between bg-cyber-card border-cyber-border"
+                >
+                  {selectedCustomerId
+                    ? customers?.find((c) => c.id === selectedCustomerId)?.name
+                    : "Walk-in Customer"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search customer..." />
+                  <CommandList>
+                    <CommandEmpty>No customer found.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="walk-in"
+                        onSelect={() => {
+                          setSelectedCustomerId("");
+                          setCustomerOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            !selectedCustomerId ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        Walk-in Customer
+                      </CommandItem>
+                      {customers?.map((customer) => (
+                        <CommandItem
+                          key={customer.id}
+                          value={customer.name}
+                          onSelect={() => {
+                            setSelectedCustomerId(customer.id);
+                            setCustomerOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedCustomerId === customer.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {customer.name} - {customer.phone}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Add Product Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Select Product</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedProductId}
-                onChange={(e) => setSelectedProductId(e.target.value)}
-              >
-                <option value="">Select Product</option>
-                {products?.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} - ₹{product.price} (Stock: {product.stock})
-                  </option>
-                ))}
-              </select>
+              <Popover open={productOpen} onOpenChange={setProductOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productOpen}
+                    className="w-full justify-between bg-cyber-card border-cyber-border"
+                  >
+                    {selectedProductId && products?.find((p) => p.id === selectedProductId)
+                      ? products.find((p) => p.id === selectedProductId)?.name
+                      : "Select product..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search product..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        {products?.map((product) => (
+                          <CommandItem
+                            key={product.id}
+                            value={product.name}
+                            onSelect={() => {
+                              setSelectedProductId(product.id);
+                              setProductOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProductId === product.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {product.name} - ₹{product.price} (Stock: {product.stock})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Quantity</label>

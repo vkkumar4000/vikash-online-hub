@@ -25,19 +25,39 @@ export default function Auth() {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/dashboard");
+        checkRoleAndRedirect(session.user.id);
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/dashboard");
+        checkRoleAndRedirect(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const checkRoleAndRedirect = async (userId: string) => {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    
+    if (roles && roles.length > 0) {
+      // Check if user is admin
+      const isAdmin = roles.some(r => r.role === "admin");
+      if (isAdmin) {
+        navigate("/dashboard");
+      } else {
+        navigate("/customer-portal");
+      }
+    } else {
+      // No role assigned, redirect to customer portal by default
+      navigate("/customer-portal");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +84,7 @@ export default function Auth() {
             title: "Welcome back!",
             description: "Successfully logged in.",
           });
+          // Role-based redirect will happen in onAuthStateChange
         }
       } else {
         const redirectUrl = `${window.location.origin}/dashboard`;
