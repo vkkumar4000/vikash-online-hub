@@ -21,6 +21,7 @@ export default function ProductsView() {
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [unit, setUnit] = useState("pcs");
+  const [reorderLevel, setReorderLevel] = useState("10");
   const [supplierId, setSupplierId] = useState("");
 
   // Fetch products with supplier info
@@ -53,7 +54,7 @@ export default function ProductsView() {
 
   // Add product mutation
   const addProductMutation = useMutation({
-    mutationFn: async (newProduct: { name: string; productCode: string; category: string; price: number; stock: number; unit: string; supplierId: string }) => {
+    mutationFn: async (newProduct: { name: string; productCode: string; category: string; price: number; stock: number; unit: string; reorderLevel: number; supplierId: string }) => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("Not authenticated");
 
@@ -71,6 +72,7 @@ export default function ProductsView() {
           price: newProduct.price,
           stock: newProduct.stock,
           unit: newProduct.unit,
+          reorder_level: newProduct.reorderLevel,
           supplier_id: newProduct.supplierId || null,
           user_id: session.session.user.id,
         })
@@ -88,6 +90,7 @@ export default function ProductsView() {
       setPrice("");
       setStock("");
       setUnit("pcs");
+      setReorderLevel("10");
       setSupplierId("");
       toast({
         title: "Product added",
@@ -146,6 +149,7 @@ export default function ProductsView() {
       price: parseFloat(price),
       stock: parseInt(stock),
       unit,
+      reorderLevel: parseInt(reorderLevel),
       supplierId,
     });
   };
@@ -232,6 +236,17 @@ export default function ProductsView() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="reorderLevel">Reorder Level *</Label>
+              <Input
+                id="reorderLevel"
+                type="number"
+                placeholder="Minimum stock level"
+                value={reorderLevel}
+                onChange={(e) => setReorderLevel(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="unit">Unit *</Label>
               <select
                 id="unit"
@@ -283,37 +298,45 @@ export default function ProductsView() {
                   <TableHead>Supplier</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">Min Stock</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product: any) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.product_code || product.product_id}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell>{product.suppliers?.name || "-"}</TableCell>
-                    <TableCell className="text-right">₹{Number(product.price).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{product.stock}</TableCell>
-                    <TableCell>{product.unit}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveProduct(product.id)}
-                          disabled={deleteProductMutation.isPending}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {products.map((product: any) => {
+                  const isLowStock = product.stock <= product.reorder_level;
+                  return (
+                    <TableRow key={product.id} className={isLowStock ? "bg-destructive/10" : ""}>
+                      <TableCell className="font-medium">{product.product_code || product.product_id}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.category}</TableCell>
+                      <TableCell>{product.suppliers?.name || "-"}</TableCell>
+                      <TableCell className="text-right">₹{Number(product.price).toFixed(2)}</TableCell>
+                      <TableCell className={`text-right font-semibold ${isLowStock ? "text-destructive" : ""}`}>
+                        {product.stock}
+                        {isLowStock && " ⚠️"}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">{product.reorder_level}</TableCell>
+                      <TableCell>{product.unit}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveProduct(product.id)}
+                            disabled={deleteProductMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

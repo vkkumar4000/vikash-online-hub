@@ -71,6 +71,7 @@ export type Database = {
           discount_amount: number
           id: string
           notes: string | null
+          paid_amount: number
           status: string
           subtotal: number
           tax_amount: number
@@ -86,6 +87,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           notes?: string | null
+          paid_amount?: number
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -101,6 +103,7 @@ export type Database = {
           discount_amount?: number
           id?: string
           notes?: string | null
+          paid_amount?: number
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -251,6 +254,7 @@ export type Database = {
           price: number
           product_code: string | null
           product_id: string
+          reorder_level: number
           stock: number
           supplier_id: string | null
           unit: string | null
@@ -265,6 +269,7 @@ export type Database = {
           price: number
           product_code?: string | null
           product_id: string
+          reorder_level?: number
           stock?: number
           supplier_id?: string | null
           unit?: string | null
@@ -279,6 +284,7 @@ export type Database = {
           price?: number
           product_code?: string | null
           product_id?: string
+          reorder_level?: number
           stock?: number
           supplier_id?: string | null
           unit?: string | null

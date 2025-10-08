@@ -16,6 +16,7 @@ import PrintBillView from "@/components/dashboard/PrintBillView";
 import ReportsView from "@/components/dashboard/ReportsView";
 import SalesView from "@/components/dashboard/SalesView";
 import PaymentsView from "@/components/dashboard/PaymentsView";
+import LowStockAlerts from "@/components/dashboard/LowStockAlerts";
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -130,6 +131,11 @@ export default function Dashboard() {
           {/* Main Content */}
           <main className="flex-1 overflow-auto">
             <div className="container mx-auto px-4 py-8">
+              {/* Low Stock Alerts */}
+              <div className="mb-6">
+                <LowStockAlerts />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {/* Stats will be populated dynamically */}
               </div>

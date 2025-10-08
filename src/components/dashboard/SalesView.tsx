@@ -33,6 +33,7 @@ export default function SalesView() {
   const [quantity, setQuantity] = useState("");
   const [discount, setDiscount] = useState("0");
   const [taxRate, setTaxRate] = useState("18");
+  const [paidAmount, setPaidAmount] = useState("");
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [notes, setNotes] = useState("");
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -74,6 +75,7 @@ export default function SalesView() {
       const taxableAmount = subtotal - discountAmount;
       const taxAmount = (taxableAmount * parseFloat(taxRate)) / 100;
       const totalAmount = taxableAmount + taxAmount;
+      const paid = paidAmount ? parseFloat(paidAmount) : 0;
 
       // Create bill
       const { data: bill, error: billError } = await supabase
@@ -86,7 +88,8 @@ export default function SalesView() {
           tax_amount: taxAmount,
           discount_amount: discountAmount,
           total_amount: totalAmount,
-          status: "unpaid",
+          paid_amount: paid,
+          status: paid >= totalAmount ? "paid" : "unpaid",
           notes,
         })
         .select()
@@ -94,7 +97,7 @@ export default function SalesView() {
 
       if (billError) throw billError;
 
-      // Create bill items
+      // Create bill items (stock will be automatically updated by trigger)
       const billItemsToInsert = billItems.map(item => ({
         bill_id: bill.id,
         product_id: item.product_id,
@@ -110,32 +113,7 @@ export default function SalesView() {
 
       if (itemsError) throw itemsError;
 
-      // Update product stock
-      for (const item of billItems) {
-        const product = products?.find(p => p.id === item.product_id);
-        if (product) {
-          await supabase
-            .from("products")
-            .update({ stock: product.stock - item.quantity })
-            .eq("id", item.product_id);
-        }
-      }
-
-      // Update customer total_due
-      if (selectedCustomerId) {
-        const { data: customer } = await supabase
-          .from("customers")
-          .select("total_due")
-          .eq("id", selectedCustomerId)
-          .single();
-
-        if (customer) {
-          await supabase
-            .from("customers")
-            .update({ total_due: Number(customer.total_due) + totalAmount })
-            .eq("id", selectedCustomerId);
-        }
-      }
+      // Customer due is automatically updated by trigger
 
       return bill;
     },
@@ -150,6 +128,7 @@ export default function SalesView() {
       setBillItems([]);
       setSelectedCustomerId("");
       setDiscount("0");
+      setPaidAmount("");
       setNotes("");
     },
     onError: (error: Error) => {
@@ -417,6 +396,18 @@ export default function SalesView() {
               </div>
 
               <div>
+                <label className="text-sm font-medium mb-2 block">Amount Paid (₹)</label>
+                <Input
+                  type="number"
+                  placeholder="Enter amount paid by customer"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(e.target.value)}
+                  min="0"
+                  max={total}
+                />
+              </div>
+
+              <div>
                 <label className="text-sm font-medium mb-2 block">Notes</label>
                 <Input
                   type="text"
@@ -443,6 +434,18 @@ export default function SalesView() {
                   <span>Total:</span>
                   <span className="text-primary">₹{total.toFixed(2)}</span>
                 </div>
+                {paidAmount && parseFloat(paidAmount) > 0 && (
+                  <>
+                    <div className="flex justify-between text-green-500">
+                      <span>Paid:</span>
+                      <span>₹{parseFloat(paidAmount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-red-500 font-semibold">
+                      <span>Balance Due:</span>
+                      <span>₹{(total - parseFloat(paidAmount)).toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Button
