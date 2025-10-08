@@ -233,6 +233,7 @@ export default function SuppliersView() {
                   <TableHead>Email</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>GST Number</TableHead>
+                  <TableHead className="text-right">Amount Due</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -245,6 +246,11 @@ export default function SuppliersView() {
                     <TableCell>{supplier.email || "-"}</TableCell>
                     <TableCell>{supplier.company || "-"}</TableCell>
                     <TableCell>{supplier.gst_number || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={`font-semibold ${Number(supplier.total_due) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        ₹{Number(supplier.total_due || 0).toFixed(2)}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">

@@ -168,6 +168,7 @@ export type Database = {
           id: string
           name: string
           phone: string
+          total_due: number
           updated_at: string
           user_id: string
         }
@@ -179,6 +180,7 @@ export type Database = {
           id?: string
           name: string
           phone: string
+          total_due?: number
           updated_at?: string
           user_id: string
         }
@@ -190,6 +192,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string
+          total_due?: number
           updated_at?: string
           user_id?: string
         }
@@ -292,6 +295,50 @@ export type Database = {
           },
         ]
       }
+      purchases: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          paid_amount: number
+          purchase_date: string
+          supplier_id: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          purchase_date?: string
+          supplier_id: string
+          total_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          purchase_date?: string
+          supplier_id?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -303,6 +350,7 @@ export type Database = {
           name: string
           phone: string
           supplier_id: string
+          total_due: number
           updated_at: string
           user_id: string
         }
@@ -316,6 +364,7 @@ export type Database = {
           name: string
           phone: string
           supplier_id: string
+          total_due?: number
           updated_at?: string
           user_id: string
         }
@@ -329,6 +378,7 @@ export type Database = {
           name?: string
           phone?: string
           supplier_id?: string
+          total_due?: number
           updated_at?: string
           user_id?: string
         }

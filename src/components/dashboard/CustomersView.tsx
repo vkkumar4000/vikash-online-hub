@@ -207,6 +207,7 @@ export default function CustomersView() {
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Address</TableHead>
+                  <TableHead className="text-right">Amount Due</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -218,6 +219,11 @@ export default function CustomersView() {
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.email || "-"}</TableCell>
                     <TableCell>{customer.address || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <span className={`font-semibold ${Number(customer.total_due) > 0 ? 'text-orange-500' : 'text-green-500'}`}>
+                        ₹{Number(customer.total_due || 0).toFixed(2)}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon">

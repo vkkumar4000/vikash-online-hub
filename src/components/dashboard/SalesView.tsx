@@ -121,6 +121,22 @@ export default function SalesView() {
         }
       }
 
+      // Update customer total_due
+      if (selectedCustomerId) {
+        const { data: customer } = await supabase
+          .from("customers")
+          .select("total_due")
+          .eq("id", selectedCustomerId)
+          .single();
+
+        if (customer) {
+          await supabase
+            .from("customers")
+            .update({ total_due: Number(customer.total_due) + totalAmount })
+            .eq("id", selectedCustomerId);
+        }
+      }
+
       return bill;
     },
     onSuccess: () => {
@@ -130,6 +146,7 @@ export default function SalesView() {
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       setBillItems([]);
       setSelectedCustomerId("");
       setDiscount("0");

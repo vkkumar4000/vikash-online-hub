@@ -65,7 +65,7 @@ export default function PaymentsView() {
 
       if (error) throw error;
 
-      // Update bill status if fully paid
+      // Update bill status and customer due
       const bill = bills?.find(b => b.id === selectedBillId);
       if (bill) {
         const totalPaid = (payments?.filter(p => p.bill_id === selectedBillId)
@@ -82,6 +82,23 @@ export default function PaymentsView() {
             .update({ status: "partial" })
             .eq("id", selectedBillId);
         }
+
+        // Update customer total_due
+        if (bill.customer_id) {
+          const { data: customer } = await supabase
+            .from("customers")
+            .select("total_due")
+            .eq("id", bill.customer_id)
+            .single();
+
+          if (customer) {
+            const newDue = Number(customer.total_due) - parseFloat(amount);
+            await supabase
+              .from("customers")
+              .update({ total_due: Math.max(0, newDue) })
+              .eq("id", bill.customer_id);
+          }
+        }
       }
     },
     onSuccess: () => {
@@ -91,6 +108,7 @@ export default function PaymentsView() {
       });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       setSelectedBillId("");
       setAmount("");
       setReferenceNumber("");
