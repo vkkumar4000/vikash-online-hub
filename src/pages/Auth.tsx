@@ -18,8 +18,18 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -130,8 +140,19 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md bg-gradient-card border-cyber-border shadow-card-cyber">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative overflow-hidden">
+      {/* Cursor-synced glow effect */}
+      <div 
+        className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(600px circle at ${cursorPos.x}px ${cursorPos.y}px, hsl(var(--primary) / 0.15), transparent 40%)`
+        }}
+      />
+      
+      <Card className="w-full max-w-md bg-gradient-card border-cyber-border shadow-card-cyber relative z-10 transition-transform duration-200"
+        style={{
+          transform: `perspective(1000px) rotateX(${(cursorPos.y - window.innerHeight / 2) / 50}deg) rotateY(${(cursorPos.x - window.innerWidth / 2) / 50}deg)`
+        }}>
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold bg-gradient-text bg-clip-text text-transparent">
             Vikash Online
