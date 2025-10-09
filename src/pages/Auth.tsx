@@ -19,6 +19,8 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const { toast } = useToast();
@@ -216,6 +218,103 @@ export default function Auth() {
         });
         
         navigate("/customer-portal");
+      } else {
+        // Customer signup
+        // First check if username already exists
+        const { data: existingUsername } = await supabase
+          .from("customer_credentials")
+          .select("username")
+          .eq("username", username)
+          .maybeSingle();
+
+        if (existingUsername) {
+          toast({
+            title: "Username taken",
+            description: "Please choose a different username.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Get current user to use as admin/creator
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast({
+            title: "Authentication required",
+            description: "Please login as admin first to create customer accounts.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Generate customer ID
+        const { data: existingCustomers } = await supabase
+          .from("customers")
+          .select("customer_id")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        let nextId = 1;
+        if (existingCustomers && existingCustomers.length > 0) {
+          const lastId = parseInt(existingCustomers[0].customer_id.replace("CUST", ""));
+          nextId = lastId + 1;
+        }
+        const customerId = `CUST${String(nextId).padStart(4, "0")}`;
+
+        // Create customer
+        const { data: newCustomer, error: customerError } = await supabase
+          .from("customers")
+          .insert({
+            user_id: user.id,
+            customer_id: customerId,
+            name,
+            email: email || null,
+            phone,
+            address: null,
+          })
+          .select()
+          .single();
+
+        if (customerError || !newCustomer) {
+          toast({
+            title: "Signup failed",
+            description: customerError?.message || "Could not create customer account.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Create credentials
+        const { error: credError } = await supabase
+          .from("customer_credentials")
+          .insert({
+            customer_id: newCustomer.id,
+            username,
+            password_hash: password, // In production, hash this!
+          });
+
+        if (credError) {
+          toast({
+            title: "Signup failed",
+            description: "Could not create login credentials.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        toast({
+          title: "Account created!",
+          description: "You can now login with your credentials.",
+        });
+        
+        setIsLogin(true);
+        setPassword("");
       }
     } catch (error) {
       toast({
@@ -344,31 +443,101 @@ export default function Auth() {
               </>
             ) : (
               <>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    className="bg-cyber-card border-cyber-border focus:border-primary"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="bg-cyber-card border-cyber-border focus:border-primary"
-                  />
-                </div>
+                {isLogin ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Enter your username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email (Optional)</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Choose a username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Choose a password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="bg-cyber-card border-cyber-border focus:border-primary"
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
             
@@ -382,17 +551,22 @@ export default function Auth() {
             </Button>
           </form>
           
-          {loginType === "admin" && (
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary hover:text-primary/80"
-              >
-                {isLogin ? "Request admin access" : "Already have access? Sign in"}
-              </Button>
-            </div>
-          )}
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-primary hover:text-primary/80"
+            >
+              {isLogin 
+                ? loginType === "admin" 
+                  ? "Request admin access" 
+                  : "Don't have an account? Sign up"
+                : loginType === "admin"
+                  ? "Already have access? Sign in"
+                  : "Already have an account? Sign in"
+              }
+            </Button>
+          </div>
           
           <div className="text-center">
             <Button
@@ -403,6 +577,8 @@ export default function Auth() {
                 setEmail("");
                 setPassword("");
                 setUsername("");
+                setName("");
+                setPhone("");
               }}
               className="text-muted-foreground hover:text-foreground"
             >
